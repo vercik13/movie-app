@@ -3,7 +3,7 @@ export const Logo = () => {
     <>
       <div className="logo">
         <span role="img">🍿</span>
-        <h1>Cinema</h1>
+        <h1>CSFD.net</h1>
       </div>
     </>
   );

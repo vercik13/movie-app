@@ -1,13 +1,16 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Navbar } from "./components/NavBar";
-import { Logo } from "./components/Logo";
-import { Search } from "./components/Search";
-import { NumResults } from "./components/NumResults";
+import { Logo } from "./components/NavBar/Logo";
+import { Search } from "./components/NavBar/Search";
+import { NumResults } from "./components/NavBar/NumResults";
 import { Main } from "./components/Main";
-import { Box } from "./components/Box";
+import { Box } from "./components/Main/Box";
 import { MovieList } from "./components/MovieList";
 import { WatchedMovieList } from "./components/WatchedMovieList";
-import { WatchedSummary } from "./components/WatchedSummary";
+import { WatchedSummary } from "./components/Main/WatchedSummary";
+import { MovieDetail } from "./components/Main/MovieDetail";
+import { Loader } from "./components/Main/Loader";
+import { ErrorMessage } from "./components/Main/ErrorMessage";
 
 const tempMovieData = [
   {
@@ -56,24 +59,97 @@ const tempWatchedData = [
   },
 ];
 
+const KEY = "d970fc2f";
+
 export default function App() {
-  const [movies, setMovies] = useState(tempMovieData);
-  const [watched, setWatched] = useState(tempWatchedData);
+  const [query, setQuery] = useState("");
+  const [movies, setMovies] = useState([]);
+  const [watched, setWatched] = useState([]);
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState("");
+  const [selectedId, setSelectedId] = useState(null);
+  //const tempQuery = "interstellar";
+
+  const handleSelectMovie = (id) => {
+    setSelectedId((selectedId) => (id === selectedId ? null : id));
+  };
+
+  const handleCloseMovie = () => {
+    setSelectedId(null);
+  };
+
+  const handleAddWatched = (movie) => {
+    setWatched((watched) => [...watched, movie]);
+  };
+
+  const handleDeleteWatched = (id) => {
+    setWatched((watched) => watched.filter((movie) => movie.imdbID !== id));
+  };
+  useEffect(() => {
+    const fetchMovies = async () => {
+      try {
+        setIsLoading(true);
+        setError("");
+        const res = await fetch(
+          `http://www.omdbapi.com/?apikey=${KEY}&s=${query}`
+        );
+
+        if (!res.ok) throw new Error("Something went wrong");
+
+        const data = await res.json();
+        if (data.Response === "False") throw new Error("Movie not found");
+
+        setMovies(data.Search);
+        setIsLoading(false);
+      } catch (err) {
+        console.error(err.message);
+        setError(err.message);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    if (query.length < 3) {
+      setMovies([]);
+      setError("");
+      return;
+    }
+    fetchMovies();
+  }, [query]);
 
   return (
     <>
       <Navbar>
         <Logo />
-        <Search />
+        <Search query={query} setQuery={setQuery} />
         <NumResults movies={movies} />
       </Navbar>
       <Main>
         <Box>
-          <MovieList movies={movies} />
+          {/*isLoading ? <Loader /> : <MovieList movies={movies} />*/}
+          {isLoading && <Loader />}
+          {!isLoading && !error && (
+            <MovieList movies={movies} onSelectMovie={handleSelectMovie} />
+          )}
+          {error && <ErrorMessage message={error} />}
         </Box>
         <Box>
-          <WatchedSummary watched={watched} />
-          <WatchedMovieList watched={watched} />
+          {selectedId ? (
+            <MovieDetail
+              selectedId={selectedId}
+              onCloseMovie={handleCloseMovie}
+              onAddWatched={handleAddWatched}
+              watched={watched}
+            />
+          ) : (
+            <>
+              <WatchedSummary watched={watched} />
+              <WatchedMovieList
+                watched={watched}
+                onDeleteWatched={handleDeleteWatched}
+              />
+            </>
+          )}
         </Box>
       </Main>
     </>
